@@ -1,5 +1,3 @@
-from __future__ import print_function, division
-
 import torch
 import torch.nn as nn
 
@@ -8,6 +6,7 @@ class ConvLayer(nn.Module):
     """
     Convolutional operation on graphs
     """
+
     def __init__(self, atom_fea_len, nbr_fea_len):
         """
         Initialize ConvLayer.
@@ -55,7 +54,7 @@ class ConvLayer(nn.Module):
           Atom hidden features after convolution
 
         """
-        # TODO will there be problems with the index zero padding?
+
         N, M = nbr_fea_idx.shape
         # convolution
         atom_nbr_fea = atom_in_fea[nbr_fea_idx, :]
@@ -79,6 +78,7 @@ class CrystalGraphConvNet(nn.Module):
     Create a crystal graph convolutional neural network for predicting total
     material properties.
     """
+
     def __init__(self, orig_atom_fea_len, nbr_fea_len,
                  atom_fea_len=64, n_conv=3, h_fea_len=128, n_h=1,
                  classification=False):
@@ -105,7 +105,7 @@ class CrystalGraphConvNet(nn.Module):
         self.classification = classification
         self.embedding = nn.Linear(orig_atom_fea_len, atom_fea_len)
         self.convs = nn.ModuleList([ConvLayer(atom_fea_len=atom_fea_len,
-                                    nbr_fea_len=nbr_fea_len)
+                                              nbr_fea_len=nbr_fea_len)
                                     for _ in range(n_conv)])
         self.conv_to_fc = nn.Linear(atom_fea_len, h_fea_len)
         self.conv_to_fc_softplus = nn.Softplus()

@@ -51,11 +51,13 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
+
 train_group = parser.add_mutually_exclusive_group()
 train_group.add_argument('--train-ratio', default=None, type=float, metavar='N',
                          help='number of training data to be loaded (default none)')
 train_group.add_argument('--train-size', default=None, type=int, metavar='N',
                          help='number of training data to be loaded (default none)')
+
 valid_group = parser.add_mutually_exclusive_group()
 valid_group.add_argument('--val-ratio', default=0.1, type=float, metavar='N',
                          help='percentage of validation data to be loaded (default '
@@ -63,6 +65,7 @@ valid_group.add_argument('--val-ratio', default=0.1, type=float, metavar='N',
 valid_group.add_argument('--val-size', default=None, type=int, metavar='N',
                          help='number of validation data to be loaded (default '
                               '1000)')
+
 test_group = parser.add_mutually_exclusive_group()
 test_group.add_argument('--test-ratio', default=0.1, type=float, metavar='N',
                         help='percentage of test data to be loaded (default 0.1)')
@@ -79,10 +82,19 @@ parser.add_argument('--n-conv', default=3, type=int, metavar='N',
                     help='number of conv layers')
 parser.add_argument('--n-h', default=1, type=int, metavar='N',
                     help='number of hidden layers after pooling')
+
+parser.add_argument('--max-num-nbr', default=12, type=int, metavar='N',
+                    help='Maximum number of neighbors')
+parser.add_argument('--radius', default=8, type=int, metavar='N',
+                    help='Radial distance to search for neighbors')
+parser.add_argument('--nn-method', default='', type=str, metavar='N',
+                    help='NN algorithm to search for neighbors (defaults to cutoff)')
 parser.add_argument('--disable-save-torch', action='store_true',
                     help='Do not save CIF PyTorch data as .json files')
 parser.add_argument('--clean-torch', action='store_true',
                     help='Clean CIF PyTorch data .json files')
+parser.add_argument('--enable-tanh', action='store_true',
+                    help='Use tanh instead of softplus')
 
 args = parser.parse_args(sys.argv[1:])
 
@@ -98,7 +110,8 @@ def main():
     global args, best_mae_error
 
     # load data
-    dataset = CIFData(*args.data_options,
+    dataset = CIFData(*args.data_options, max_num_nbr=args.max_num_nbr,
+                      radius=args.radius, nn_method=args.nn_method,
                       disable_save_torch=args.disable_save_torch)
     collate_fn = collate_pool
     train_loader, val_loader, test_loader = get_train_val_test_loader(
@@ -120,6 +133,7 @@ def main():
         total_train = 0
         total_val = 0
         total_test = 0
+
         for i, (_, target, _) in enumerate(train_loader):
             for target_i in target.squeeze():
                 total_train += target_i
@@ -127,6 +141,7 @@ def main():
             raise ValueError('All 0s in train')
         elif bool(total_train == 1):
             raise ValueError('All 1s in train')
+
         for i, (_, target, _) in enumerate(val_loader):
             if len(target) == 1:
                 raise ValueError('Only single entry in val')
@@ -136,6 +151,7 @@ def main():
             raise ValueError('All 0s in val')
         elif bool(total_val == 1):
             raise ValueError('All 1s in val')
+
         for i, (_, target, _) in enumerate(test_loader):
             if len(target) == 1:
                 raise ValueError('Only single entry in test')
@@ -186,7 +202,8 @@ def main():
                                 h_fea_len=args.h_fea_len,
                                 n_h=args.n_h,
                                 classification=True if args.task ==
-                                'classification' else False)
+                                'classification' else False,
+                                enable_tanh=args.enable_tanh)
     if args.cuda:
         model.cuda()
 
@@ -255,12 +272,15 @@ def main():
     # test best model
     best_checkpoint = torch.load(os.path.join('output', 'model_best.pth.tar'))
     model.load_state_dict(best_checkpoint['state_dict'])
+
     print('---------Evaluate Best Model on Train Set---------------')
     validate(train_loader, model, criterion, normalizer, test=True,
              csv_name='train_results.csv')
+
     print('---------Evaluate Best Model on Val Set---------------')
     validate(val_loader, model, criterion, normalizer, test=True,
              csv_name='val_results.csv')
+
     print('---------Evaluate Best Model on Test Set---------------')
     validate(test_loader, model, criterion, normalizer, test=True,
              csv_name='test_results.csv')
@@ -357,7 +377,9 @@ def train(train_loader, model, criterion, optimizer, epoch, normalizer):
                       )
 
 
-def validate(val_loader, model, criterion, normalizer, test=False, csv_name='test_results.csv'):
+def validate(val_loader, model, criterion, normalizer, test=False,
+             csv_name='test_results.csv'):
+
     batch_time = AverageMeter()
     losses = AverageMeter()
     if args.task == 'regression':
@@ -381,9 +403,11 @@ def validate(val_loader, model, criterion, normalizer, test=False, csv_name='tes
         if args.cuda:
             with torch.no_grad():
                 input_var = (tensor.to("cuda") for tensor in input_)
+
         else:
             with torch.no_grad():
                 input_var = input_
+
         if args.task == 'regression':
             target_normed = normalizer.norm(target)
         else:

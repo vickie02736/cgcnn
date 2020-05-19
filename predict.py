@@ -55,7 +55,9 @@ def main():
     global args, model_args, best_mae_error
 
     # load data
-    dataset = CIFData(args.cifpath, disable_save_torch=args.disable_save_torch)
+    dataset = CIFData(args.cifpath, max_num_nbr=model_args.max_num_nbr,
+                      radius=model_args.radius, nn_method=model_args.nn_method,
+                      disable_save_torch=args.disable_save_torch)
     collate_fn = collate_pool
 
     if args.train_val_test:
@@ -98,7 +100,8 @@ def main():
                                 h_fea_len=model_args.h_fea_len,
                                 n_h=model_args.n_h,
                                 classification=True if model_args.task ==
-                                'classification' else False)
+                                'classification' else False,
+                                enable_tanh=model_args.enable_tanh)
     if args.cuda:
         model.cuda()
 

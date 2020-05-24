@@ -77,6 +77,10 @@ def main():
                                  num_workers=args.workers, collate_fn=collate_fn,
                                  pin_memory=args.cuda)
 
+    # make output folder if needed
+    if not os.path.exists('output'):
+        os.mkdir('output')
+
     # make and clean torch files if needed
     torch_data_path = os.path.join(args.cifpath, 'cifdata')
     if args.clean_torch and os.path.exists(torch_data_path):

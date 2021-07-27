@@ -60,11 +60,11 @@ This package requires:
 If you are new to Python, the easiest way of installing the prerequisites is via [conda](https://conda.io/docs/index.html) and `pip`. After installing [conda](http://conda.pydata.org/), run the following command to create a new [environment](https://conda.io/docs/user-guide/tasks/manage-environments.html) named `cgcnn` and install all prerequisites:
 
 ```bash
-conda create -n cgcnn python=3
+conda create -n cgcnn python=3.8
 source activate cgcnn
-conda install pytorch torchvision cudatoolkit=10.1 -c pytorch 
+conda install pytorch==1.4.0 torchvision cudatoolkit=10.1 -c pytorch 
 conda install scikit-learn
-pip install pymatgen
+pip install pymatgen==2020.3.13
 ```
 This creates a conda environment for running CGCNN. Before using CGCNN, activate the environment by:
 

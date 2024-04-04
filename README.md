@@ -52,25 +52,12 @@ Please cite the following work if you want to use CGCNN.
 ##  Prerequisites - for UCL myriad cluster
 
 Cluster information (example): 
-+---------------------------------------------------------------------------------------+
-| NVIDIA-SMI 535.54.03              Driver Version: 535.54.03    CUDA Version: 12.2     |
-|-----------------------------------------+----------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
-|                                         |                      |               MIG M. |
-|=========================================+======================+======================|
-|   0  Tesla V100-PCIE-32GB           Off | 00000000:D8:00.0 Off |                    0 |
-| N/A   31C    P0              36W / 250W |      0MiB / 32768MiB |      1%      Default |
-|                                         |                      |                  N/A |
-+-----------------------------------------+----------------------+----------------------+
-                                                                                         
-+---------------------------------------------------------------------------------------+
-| Processes:                                                                            |
-|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
-|        ID   ID                                                             Usage      |
-|=======================================================================================|
-|  No running processes found                                                           |
-+---------------------------------------------------------------------------------------+
+**NVIDIA-SMI 535.54.03 - Driver Version: 535.54.03, CUDA Version: 12.2**
+
+| GPU | Name | Persistence-M | Bus-Id | Disp.A | Volatile Uncorr. ECC | Fan | Temp | Perf | Pwr:Usage/Cap | Memory-Usage | GPU-Util | Compute M. | MIG M. |
+|-----|------|---------------|--------|--------|----------------------|-----|------|------|---------------|--------------|----------|------------|--------|
+| 0 | Tesla V100-PCIE-32GB | Off | 00000000:D8:00.0 | Off | 0 | N/A | 31C | P0 | 36W / 250W | 0MiB / 32768MiB | 1% | Default | N/A |
+
 
 This package requires:
 

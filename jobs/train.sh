@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#$ -N cgcnn
+#$ -N cgcnn_qmof
 #$ -l h_rt=72:00:0
 #$ -l mem=30G
 #$ -l gpu=1
@@ -23,5 +23,5 @@ echo "Python environment activated"
 
 timestamp=$(date +%d-%m-%Y_%H:%M:%S)
 echo $timestamp
-python ../main.py /home/uceckz0/Project/cgcnn/data/sample-classification
+python ../main.py /home/uceckz0/Project/cgcnn/qmof_database/train_dataset
 echo $timestamp

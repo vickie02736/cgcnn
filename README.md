@@ -49,43 +49,39 @@ Please cite the following work if you want to use CGCNN.
 }
 ```
 
-##  Prerequisites
+##  Prerequisites - for UCL myriad cluster
+
+Cluster information (example): 
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 535.54.03              Driver Version: 535.54.03    CUDA Version: 12.2     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  Tesla V100-PCIE-32GB           Off | 00000000:D8:00.0 Off |                    0 |
+| N/A   31C    P0              36W / 250W |      0MiB / 32768MiB |      1%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+                                                                                         
++---------------------------------------------------------------------------------------+
+| Processes:                                                                            |
+|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
+|        ID   ID                                                             Usage      |
+|=======================================================================================|
+|  No running processes found                                                           |
++---------------------------------------------------------------------------------------+
 
 This package requires:
 
-- [PyTorch](http://pytorch.org) (tested on v.1.4.0)
-- [scikit-learn](http://scikit-learn.org/stable/) (tested on v.0.22.1)
-- [pymatgen](http://pymatgen.org) (tested on v.2020.3.13)
+- [PyTorch](http://pytorch.org)
+- [scikit-learn](http://scikit-learn.org/stable/) 
+- [pymatgen](http://pymatgen.org) 
 
 If you are new to Python, the easiest way of installing the prerequisites is via [conda](https://conda.io/docs/index.html) and `pip`. After installing [conda](http://conda.pydata.org/), run the following command to create a new [environment](https://conda.io/docs/user-guide/tasks/manage-environments.html) named `cgcnn` and install all prerequisites:
 
-```bash
-conda create -n cgcnn python=3.8
-source activate cgcnn
-conda install pytorch==1.4.0 torchvision cudatoolkit=10.1 -c pytorch 
-conda install scikit-learn
-pip install pymatgen==2020.3.13
-```
-This creates a conda environment for running CGCNN. Before using CGCNN, activate the environment by:
+The environment requirements are saved  in the file `environment.yml`, with the guide for [Creating an environment from an environment.yml file](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-from-an-environment-yml-file). 
 
-```bash
-source activate cgcnn
-```
-
-Then, in directory `cgcnn`, you can test if all the prerequisites are installed properly by running:
-
-```bash
-python main.py -h
-python predict.py -h
-```
-
-This should display the help messages for `main.py` and `predict.py`. If you find no error messages, it means that the prerequisites are installed properly.
-
-After you finished using CGCNN, exit the environment by:
-
-```bash
-source deactivate
-```
 
 ## Usage
 

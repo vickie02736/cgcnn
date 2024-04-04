@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 import sys
+sys.path.append(".")
 import time
 import warnings
 from random import sample
@@ -288,7 +289,7 @@ def train(train_loader, model, criterion, optimizer, epoch, normalizer):
         data_time.update(time.time() - end)
 
         if args.cuda:
-            input_var = (tensor.to("cuda") for tensor in input_)
+            input_var = (item.to("cuda") if isinstance(item, torch.Tensor) else item for item in input_)
         else:
             input_var = input_
 
@@ -380,7 +381,10 @@ def validate(val_loader, model, criterion, normalizer, test=False, csv_name='tes
     for i, (input_, target, batch_cif_ids) in enumerate(val_loader):
         if args.cuda:
             with torch.no_grad():
-                input_var = (tensor.to("cuda") for tensor in input_)
+                # input_var = (tensor.to("cuda") for tensor in input_)
+                print(type(input_))
+                print(type(input_[0]))
+                input_var = (item.to("cuda") if isinstance(item, torch.Tensor) else item for item in input_)
         else:
             with torch.no_grad():
                 input_var = input_

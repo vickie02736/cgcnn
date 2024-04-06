@@ -14,10 +14,10 @@ from torch.utils.data.dataloader import default_collate
 from torch.utils.data.sampler import SubsetRandomSampler
 
 
-def get_train_val_test_loader(dataset, collate_fn=default_collate,
-                              batch_size=64, train_ratio=None,
-                              val_ratio=0.1, test_ratio=0.1, return_test=False,
-                              num_workers=1, pin_memory=False, **kwargs):
+def get_loader(train_dataset, valid_dataset, test_dataset=None,
+               collate_fn=default_collate, batch_size=64, 
+               # train_ratio=None, val_ratio=0.1, test_ratio=0.1, return_test=False, 
+               num_workers=1, pin_memory=False, **kwargs):
     """
     Utility function for dividing a dataset to train, val, test datasets.
 
@@ -26,12 +26,8 @@ def get_train_val_test_loader(dataset, collate_fn=default_collate,
     Parameters
     ----------
     dataset: torch.utils.data.Dataset
-      The full dataset to be divided.
     collate_fn: torch.utils.data.DataLoader
     batch_size: int
-    train_ratio: float
-    val_ratio: float
-    test_ratio: float
     return_test: bool
       Whether to return the test dataset loader. If False, the last test_size
       data will be hidden.
@@ -48,45 +44,17 @@ def get_train_val_test_loader(dataset, collate_fn=default_collate,
       DataLoader that random samples the test data, returns if
         return_test=True.
     """
-    total_size = len(dataset)
-    if train_ratio is None:
-        assert val_ratio + test_ratio < 1
-        train_ratio = 1 - val_ratio - test_ratio
-        print('[Warning] train_ratio is None, using all training data.')
-    else:
-        assert train_ratio + val_ratio + test_ratio <= 1
-    indices = list(range(total_size))
-    if kwargs['train_size']:
-        train_size = kwargs['train_size']
-    else:
-        train_size = int(train_ratio * total_size)
-    if kwargs['test_size']:
-        test_size = kwargs['test_size']
-    else:
-        test_size = int(test_ratio * total_size)
-    if kwargs['val_size']:
-        valid_size = kwargs['val_size']
-    else:
-        valid_size = int(val_ratio * total_size)
-    train_sampler = SubsetRandomSampler(indices[:train_size])
-    val_sampler = SubsetRandomSampler(
-        indices[-(valid_size + test_size):-test_size])
-    if return_test:
-        test_sampler = SubsetRandomSampler(indices[-test_size:])
-    train_loader = DataLoader(dataset, batch_size=batch_size,
-                              sampler=train_sampler,
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size,
                               num_workers=num_workers,
                               collate_fn=collate_fn, pin_memory=pin_memory)
-    val_loader = DataLoader(dataset, batch_size=batch_size,
-                            sampler=val_sampler,
+    val_loader = DataLoader(valid_dataset, batch_size=batch_size,
                             num_workers=num_workers,
                             collate_fn=collate_fn, pin_memory=pin_memory)
-    if return_test:
-        test_loader = DataLoader(dataset, batch_size=batch_size,
-                                 sampler=test_sampler,
-                                 num_workers=num_workers,
-                                 collate_fn=collate_fn, pin_memory=pin_memory)
-    if return_test:
+    if test_dataset is not None:
+        test_loader = DataLoader(test_dataset, batch_size=batch_size,
+                                num_workers=num_workers,
+                                collate_fn=collate_fn, pin_memory=pin_memory)
         return train_loader, val_loader, test_loader
     else:
         return train_loader, val_loader
@@ -300,13 +268,13 @@ class CIFData(Dataset):
     cif_id: str or int
     """
 
-    def __init__(self, root_dir, max_num_nbr=12, radius=8, dmin=0, step=0.2,
+    def __init__(self, root_dir, id_prop, max_num_nbr=12, radius=8, dmin=0, step=0.2,
                  disable_save_torch=False, random_seed=42):
         self.root_dir = root_dir
         self.max_num_nbr, self.radius = max_num_nbr, radius
         self.disable_save_torch = disable_save_torch
         assert os.path.exists(root_dir), 'root_dir does not exist!'
-        id_prop_file = os.path.join(self.root_dir, 'id_prop.csv')
+        id_prop_file = os.path.join(self.root_dir, id_prop)
         assert os.path.exists(id_prop_file), 'id_prop.csv does not exist!'
         with open(id_prop_file) as f:
             reader = csv.reader(f)
@@ -314,6 +282,7 @@ class CIFData(Dataset):
                                   for x in row] for row in reader]
         random.seed(random_seed)
         random.shuffle(self.id_prop_data)
+        
         atom_init_file = os.path.join(self.root_dir, 'atom_init.json')
         assert os.path.exists(atom_init_file), 'atom_init.json does not exist!'
         self.ari = AtomCustomJSONInitializer(atom_init_file)

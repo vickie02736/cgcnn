@@ -14,9 +14,8 @@ from torch.utils.data.dataloader import default_collate
 from torch.utils.data.sampler import SubsetRandomSampler
 
 
-def get_loader(train_dataset, valid_dataset, test_dataset=None,
+def get_loader(train_dataset, test_dataset=None, train_ratio=0.8, 
                collate_fn=default_collate, batch_size=64, 
-               # train_ratio=None, val_ratio=0.1, test_ratio=0.1, return_test=False, 
                num_workers=1, pin_memory=False, **kwargs):
     """
     Utility function for dividing a dataset to train, val, test datasets.
@@ -45,10 +44,18 @@ def get_loader(train_dataset, valid_dataset, test_dataset=None,
         return_test=True.
     """
 
+    total_size = len(train_dataset)
+    indices = list(range(total_size))
+    train_size = int(train_ratio * total_size)
+    train_sampler = SubsetRandomSampler(indices[:train_size])
+    val_sampler = SubsetRandomSampler(indices[train_size:])
+
     train_loader = DataLoader(train_dataset, batch_size=batch_size,
+                              sampler=train_sampler,
                               num_workers=num_workers,
                               collate_fn=collate_fn, pin_memory=pin_memory)
-    val_loader = DataLoader(valid_dataset, batch_size=batch_size,
+    val_loader = DataLoader(train_dataset, batch_size=batch_size,
+                            sampler=val_sampler,
                             num_workers=num_workers,
                             collate_fn=collate_fn, pin_memory=pin_memory)
     if test_dataset is not None:

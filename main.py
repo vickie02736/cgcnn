@@ -17,7 +17,7 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import MultiStepLR
 
 from cgcnn.data import CIFData
-from cgcnn.data import collate_pool, get_train_val_test_loader
+from cgcnn.data import collate_pool, get_loader
 from cgcnn.model import CrystalGraphConvNet
 
 parser = argparse.ArgumentParser(
@@ -52,23 +52,10 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
-train_group = parser.add_mutually_exclusive_group()
-train_group.add_argument('--train-ratio', default=None, type=float, metavar='N',
-                         help='number of training data to be loaded (default none)')
-train_group.add_argument('--train-size', default=None, type=int, metavar='N',
-                         help='number of training data to be loaded (default none)')
-valid_group = parser.add_mutually_exclusive_group()
-valid_group.add_argument('--val-ratio', default=0.1, type=float, metavar='N',
-                         help='percentage of validation data to be loaded (default '
-                         '0.1)')
-valid_group.add_argument('--val-size', default=None, type=int, metavar='N',
-                         help='number of validation data to be loaded (default '
-                              '1000)')
-test_group = parser.add_mutually_exclusive_group()
-test_group.add_argument('--test-ratio', default=0.1, type=float, metavar='N',
-                        help='percentage of test data to be loaded (default 0.1)')
-test_group.add_argument('--test-size', default=None, type=int, metavar='N',
-                        help='number of test data to be loaded (default 1000)')
+
+parser.add_argument('--train-id-prop', default=None, type=str, metavar='N',)
+parser.add_argument('--test-id-prop', default=None, type=str, metavar='N',)
+parser.add_argument('--train-radio', default=0.8, type=float, metavar='N', help='train radio')
 
 parser.add_argument('--optim', default='SGD', type=str, metavar='SGD',
                     help='choose an optimizer, SGD or Adam, (default: SGD)')
@@ -99,36 +86,28 @@ def main():
     global args, best_mae_error
 
     # load data
-    dataset = CIFData(*args.data_options,
-                      disable_save_torch=args.disable_save_torch)
+    train_dataset = CIFData(*args.data_options, id_prop = args.train_id_prop,
+                            disable_save_torch=args.disable_save_torch)
+    test_dataset = CIFData(*args.data_options, id_prop = args.test_id_prop,
+                            disable_save_torch=args.disable_save_torch)
     collate_fn = collate_pool
-    train_loader, val_loader, test_loader = get_train_val_test_loader(
-        dataset=dataset,
-        collate_fn=collate_fn,
-        batch_size=args.batch_size,
-        train_ratio=args.train_ratio,
-        num_workers=args.workers,
-        val_ratio=args.val_ratio,
-        test_ratio=args.test_ratio,
-        pin_memory=args.cuda,
-        train_size=args.train_size,
-        val_size=args.val_size,
-        test_size=args.test_size,
-        return_test=True)
+    train_loader, val_loader, test_loader = get_loader(train_dataset, test_dataset, args.train_radio,
+                                                       collate_fn=collate_fn, batch_size=args.batch_size, 
+                                                       num_workers=args.workers, pin_memory=args.cuda)
 
     # Make sure >1 class is present
     if args.task == 'classification':
         total_train = 0
         total_val = 0
         total_test = 0
-        for i, (_, target, _) in enumerate(train_loader):
+        for _, (_, target, _) in enumerate(train_loader):
             for target_i in target.squeeze():
                 total_train += target_i
         if bool(total_train == 0):
             raise ValueError('All 0s in train')
         elif bool(total_train == 1):
             raise ValueError('All 1s in train')
-        for i, (_, target, _) in enumerate(val_loader):
+        for _, (_, target, _) in enumerate(val_loader):
             if len(target) == 1:
                 raise ValueError('Only single entry in val')
             for target_i in target.squeeze():
@@ -137,7 +116,7 @@ def main():
             raise ValueError('All 0s in val')
         elif bool(total_val == 1):
             raise ValueError('All 1s in val')
-        for i, (_, target, _) in enumerate(test_loader):
+        for _, (_, target, _) in enumerate(test_loader):
             if len(target) == 1:
                 raise ValueError('Only single entry in test')
             for target_i in target.squeeze():
@@ -155,7 +134,7 @@ def main():
     torch_data_path = os.path.join(args.data_options[0], 'cifdata')
     if args.clean_torch and os.path.exists(torch_data_path):
         shutil.rmtree(torch_data_path)
-    if os.path.exists(torch_data_path):
+    if os.path.exists(torch_data_path):  
         if not args.clean_torch:
             warnings.warn('Found cifdata folder at ' +
                           torch_data_path+'. Will read in .jsons as-available')
@@ -167,18 +146,19 @@ def main():
         normalizer = Normalizer(torch.zeros(2))
         normalizer.load_state_dict({'mean': 0., 'std': 1.})
     else:
-        if len(dataset) < 500:
-            warnings.warn('Dataset has less than 500 data points. '
+        if len(train_dataset) < 500:
+            warnings.warn('Train_dataset has less than 500 data points. '
                           'Lower accuracy is expected. ')
-            sample_data_list = [dataset[i] for i in range(len(dataset))]
+            sample_data_list = [train_dataset[i] for i in range(len(train_dataset))]
         else:
-            sample_data_list = [dataset[i] for i in
-                                sample(range(len(dataset)), 500)]
+            sample_data_list = [train_dataset[i] for i in
+                                sample(range(len(train_dataset)), 500)]
+        
         _, sample_target, _ = collate_pool(sample_data_list)
         normalizer = Normalizer(sample_target)
 
     # build model
-    structures, _, _ = dataset[0]
+    structures, _, _ = train_dataset[0]
     orig_atom_fea_len = structures[0].shape[-1]
     nbr_fea_len = structures[1].shape[-1]
     model = CrystalGraphConvNet(orig_atom_fea_len, nbr_fea_len,

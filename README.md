@@ -173,13 +173,27 @@ After predicting, you will get one file in `cgcnn` directory:
 
 - `test_results.csv`: stores the `ID`, target value, and predicted value for each crystal in test set. Here the target value is just any number that you set while defining the dataset in `id_prop.csv`, which is not important.
 
+Here is the comprehensive bash script for the modified version: 
+```bash
+python main.py \
+    root_dir \
+    --epochs 250 \
+    --output-dir band_gap \
+    --train-id-prop train_id_prop.csv \
+    --test-id-prop test_id_prop.csv \
+```
+Here is added the "output-dir" (directory), train-id-prop and test-id-prop (csv_files, the same format as previous "id_prop.csv"). 
+
+
 ## Authors
 
 This software was originally written by [Tian Xie](http://txie.me) and [Prof. Jeffrey Grossman](https://dmse.mit.edu/faculty/profile/grossman). This slightly modified version was made by [Andrew S. Rosen](https://asrosen.com/).
 
 ## License
 
-CGCNN is released under the MIT License.
+CGCNN is released under the MIT License. 
+
+Modified by Kewei Zhu. 
 
 
 

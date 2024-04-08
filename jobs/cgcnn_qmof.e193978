@@ -1,0 +1,2 @@
+../main.py:160: UserWarning: Found cifdata folder at /home/uceckz0/Project/cgcnn/qmof_database/train_dataset/cifdata. Will read in .jsons as-available
+  warnings.warn('Found cifdata folder at ' +

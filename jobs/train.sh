@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
-#$ -N cgcnn_qmof
-#$ -l h_rt=72:00:0
-#$ -l mem=30G
+#$ -N band_gap
+#$ -l h_rt=4:00:0
+#$ -l mem=10G
 #$ -l gpu=1
 #$ -ac allow=EFL
 
@@ -23,5 +23,5 @@ echo "Python environment activated"
 
 timestamp=$(date +%d-%m-%Y_%H:%M:%S)
 echo $timestamp
-python ../main.py /home/uceckz0/Project/cgcnn/qmof_database/train_dataset
+python ../main.py /home/uceckz0/Project/cgcnn/qmof_database/train_dataset --epochs 250 --output-dir band_gap --train-id-prop train_id_prop.csv --test-id-prop test_id_prop.csv
 echo $timestamp

@@ -36,9 +36,9 @@ parser.add_argument('--epochs', default=30, type=int, metavar='N',
                     help='number of total epochs to run (default: 30)')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=256, type=int,
+parser.add_argument('-b', '--batch-size', default=1024, type=int, 
                     metavar='N', help='mini-batch size (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
                     metavar='LR', help='initial learning rate (default: '
                                        '0.01)')
 parser.add_argument('--lr-milestones', default=[100], nargs='+', type=int,
@@ -53,8 +53,6 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 
-parser.add_argument('--train-id-prop', default=None, type=str)
-parser.add_argument('--test-id-prop', default=None, type=str)
 parser.add_argument('--train-radio', default=0.8, type=float, metavar='N', help='train radio')
 
 parser.add_argument('--optim', default='SGD', type=str, metavar='SGD',
@@ -71,7 +69,7 @@ parser.add_argument('--disable-save-torch', action='store_true',
                     help='Do not save CIF PyTorch data as .json files')
 parser.add_argument('--clean-torch', action='store_true',
                     help='Clean CIF PyTorch data .json files')
-parser.add_argument('--output-dir', default='output', type=str, metavar='PATH',)
+parser.add_argument('--target', default='output', type=str, metavar='PATH',)
 
 args = parser.parse_args(sys.argv[1:])
 
@@ -87,9 +85,9 @@ def main():
     global args, best_mae_error
 
     # load data
-    train_dataset = CIFData(*args.data_options, id_prop = args.train_id_prop,
+    train_dataset = CIFData(*args.data_options, target_dir = args.target, train=True, 
                             disable_save_torch=args.disable_save_torch)
-    test_dataset = CIFData(*args.data_options, id_prop = args.test_id_prop,
+    test_dataset = CIFData(*args.data_options, target_dir = args.target, train=False,
                             disable_save_torch=args.disable_save_torch)
     collate_fn = collate_pool
     train_loader, val_loader, test_loader = get_loader(train_dataset, test_dataset, args.train_radio,
@@ -128,8 +126,8 @@ def main():
             raise ValueError('All 1s in test')
 
     # make output folder if needed
-    if not os.path.exists(args.output_dir):
-        os.mkdir(args.output_dir)
+    if not os.path.exists(args.target):
+        os.mkdir(args.target)
 
     # make and clean torch files if needed
     torch_data_path = os.path.join(args.data_options[0], 'cifdata')
@@ -235,7 +233,7 @@ def main():
         }, is_best)
 
     # test best model
-    best_checkpoint = torch.load(os.path.join(args.output_dir, 'model_best.pth.tar'))
+    best_checkpoint = torch.load(os.path.join(args.target, 'model_best.pth.tar'))
     model.load_state_dict(best_checkpoint['state_dict'])
     print('---------Evaluate Best Model on Train Set---------------')
     validate(train_loader, model, criterion, normalizer, test=True,
@@ -441,7 +439,7 @@ def validate(val_loader, model, criterion, normalizer, test=False, csv_name='tes
 
     if test:
         star_label = '**'
-        with open(os.path.join(args.output_dir, csv_name), 'w') as f:
+        with open(os.path.join(args.target, csv_name), 'w') as f:
             writer = csv.writer(f)
             for cif_id, target, pred in zip(test_cif_ids, test_targets,
                                             test_preds):
@@ -530,10 +528,10 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def save_checkpoint(state, is_best, filename=os.path.join(args.output_dir, 'checkpoint.pth.tar')):
+def save_checkpoint(state, is_best, filename=os.path.join(args.target, 'checkpoint.pth.tar')):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, os.path.join(args.output_dir, 'model_best.pth.tar'))
+        shutil.copyfile(filename, os.path.join(args.target, 'model_best.pth.tar'))
 
 
 def adjust_learning_rate(optimizer, epoch, k):

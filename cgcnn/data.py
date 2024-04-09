@@ -231,15 +231,14 @@ class CIFData(Dataset):
     directory structure:
 
     root_dir
-    ├── id_prop.csv
+    ├── target_dir
     ├── atom_init.json
     ├── id0.cif
     ├── id1.cif
     ├── ...
 
-    id_prop.csv: a CSV file with two columns. The first column recodes a
-    unique ID for each crystal, and the second column recodes the value of
-    target property.
+    target_dir: a directory which saves train.csv and test.csv, showing the 
+    target for the training. 
 
     atom_init.json: a JSON file that stores the initialization vector for each
     element.
@@ -275,14 +274,21 @@ class CIFData(Dataset):
     cif_id: str or int
     """
 
-    def __init__(self, root_dir, id_prop, max_num_nbr=12, radius=8, dmin=0, step=0.2,
+    def __init__(self, root_dir, target_dir, train=True,
+                 max_num_nbr=12, radius=8, dmin=0, step=0.2,
                  disable_save_torch=False, random_seed=42):
         self.root_dir = root_dir
         self.max_num_nbr, self.radius = max_num_nbr, radius
         self.disable_save_torch = disable_save_torch
         assert os.path.exists(root_dir), 'root_dir does not exist!'
-        id_prop_file = os.path.join(self.root_dir, id_prop)
-        assert os.path.exists(id_prop_file), 'id_prop.csv does not exist!'
+        id_prop_file = os.path.join(self.root_dir, target_dir)
+        assert os.path.exists(id_prop_file), 'target_dir does not exist!'
+        if train:
+            id_prop_file = os.path.join(id_prop_file, 'train.csv')
+            assert os.path.exists(id_prop_file), 'train.csv does not exist!'
+        else:
+            id_prop_file = os.path.join(id_prop_file, 'test.csv')
+            assert os.path.exists(id_prop_file), 'test.csv does not exist!'
         with open(id_prop_file) as f:
             reader = csv.reader(f)
             self.id_prop_data = [[x.strip().replace('\ufeff', '')

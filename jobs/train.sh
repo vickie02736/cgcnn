@@ -23,5 +23,4 @@ echo "Python environment activated"
 
 timestamp=$(date +%d-%m-%Y_%H:%M:%S)
 echo $timestamp
-python ../main.py /home/uceckz0/Project/cgcnn/qmof_database/train_dataset --epochs 3 --target band_gap --train-id-prop train_id_prop.csv --test-id-prop test_id_prop.csv
-echo $timestamp
+python ../main.py /home/uceckz0/Project/cgcnn/qmof_database/train_dataset --epochs 6000 --target band_gap

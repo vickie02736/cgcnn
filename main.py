@@ -36,9 +36,9 @@ parser.add_argument('--epochs', default=30, type=int, metavar='N',
                     help='number of total epochs to run (default: 30)')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=1024, type=int, 
+parser.add_argument('-b', '--batch-size', default=256, type=int, 
                     metavar='N', help='mini-batch size (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.005, type=float,
                     metavar='LR', help='initial learning rate (default: '
                                        '0.01)')
 parser.add_argument('--lr-milestones', default=[100], nargs='+', type=int,
@@ -53,7 +53,7 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 
-parser.add_argument('--train-radio', default=0.8, type=float, metavar='N', help='train radio')
+parser.add_argument('--train-radio', default=0.1, type=float, metavar='N', help='train radio')
 
 parser.add_argument('--optim', default='SGD', type=str, metavar='SGD',
                     help='choose an optimizer, SGD or Adam, (default: SGD)')

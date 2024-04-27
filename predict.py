@@ -12,14 +12,15 @@ from sklearn import metrics
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
-from cgcnn.data import CIFData, get_train_val_test_loader
+from cgcnn.data import CIFData
 from cgcnn.data import collate_pool
 from cgcnn.model import CrystalGraphConvNet
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(
     description='Crystal Graph Convolutional Neural Networks')
-parser.add_argument('modelpath', help='path to the trained model.')
-parser.add_argument('cifpath', help='path to the directory of CIF files.')
+parser.add_argument('--modelpath', help='path to the trained model.')
+parser.add_argument('--cifpath', help='path to the directory of CIF files.')
 parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                     help='number of data loading workers (default: 0)')
 parser.add_argument('--disable-cuda', action='store_true',
@@ -30,8 +31,9 @@ parser.add_argument('--disable-save-torch', action='store_true',
                     help='Do not save CIF PyTorch data as .json files')
 parser.add_argument('--clean-torch', action='store_true',
                     help='Clean CIF PyTorch data .json files')
-parser.add_argument('--train-val-test', action='store_true',
-                    help='Return training/validation/testing results')
+parser.add_argument('-b', '--batch-size', default=256, type=int, 
+                    metavar='N', help='mini-batch size (default: 256)')
+parser.add_argument('--target', default='output', type=str, metavar='PATH',)
 
 args = parser.parse_args(sys.argv[1:])
 if os.path.isfile(args.modelpath):
@@ -45,37 +47,22 @@ else:
 
 args.cuda = not args.disable_cuda and torch.cuda.is_available()
 
-if model_args.task == 'regression':
-    best_mae_error = 1e10
-else:
-    best_mae_error = 0.
+# if model_args.task == 'regression':
+#     best_mae_error = 1e10
+# else:
+#     best_mae_error = 0.
 
 
 def main():
     global args, model_args, best_mae_error
 
     # load data
-    dataset = CIFData(args.cifpath, disable_save_torch=args.disable_save_torch)
+    dataset = CIFData(args.cifpath, target_dir = args.target, train=False, 
+                      disable_save_torch=args.disable_save_torch)
     collate_fn = collate_pool
-
-    if args.train_val_test:
-        train_loader, val_loader, test_loader = get_train_val_test_loader(
-            dataset=dataset,
-            collate_fn=collate_fn,
-            batch_size=model_args.batch_size,
-            train_ratio=model_args.train_ratio,
-            num_workers=args.workers,
-            val_ratio=model_args.val_ratio,
-            test_ratio=model_args.test_ratio,
-            pin_memory=args.cuda,
-            train_size=model_args.train_size,
-            val_size=model_args.val_size,
-            test_size=model_args.test_size,
-            return_test=True)
-    else:
-        test_loader = DataLoader(dataset, batch_size=model_args.batch_size, shuffle=True,
-                                 num_workers=args.workers, collate_fn=collate_fn,
-                                 pin_memory=args.cuda)
+    test_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
+                                num_workers=args.workers, collate_fn=collate_fn,
+                                pin_memory=args.cuda)
 
     # make output folder if needed
     if not os.path.exists('output'):
@@ -127,20 +114,9 @@ def main():
     else:
         print("=> no model found at '{}'".format(args.modelpath))
 
-    if args.train_val_test:
-        print('---------Evaluate Model on Train Set---------------')
-        validate(train_loader, model, criterion, normalizer, test=True,
-                 csv_name='train_results.csv')
-        print('---------Evaluate Model on Val Set---------------')
-        validate(val_loader, model, criterion, normalizer, test=True,
-                 csv_name='val_results.csv')
-        print('---------Evaluate Model on Test Set---------------')
-        validate(test_loader, model, criterion, normalizer, test=True,
-                 csv_name='test_results.csv')
-    else:
-        print('---------Evaluate Model on Dataset---------------')
-        validate(test_loader, model, criterion, normalizer, test=True,
-                 csv_name='predictions.csv')
+    print('---------Evaluate Model on Dataset---------------')
+    validate(test_loader, model, criterion, normalizer, test=True,
+                csv_name='test.csv')
 
 
 def validate(val_loader, model, criterion, normalizer, test=False,
@@ -164,10 +140,10 @@ def validate(val_loader, model, criterion, normalizer, test=False,
     model.eval()
 
     end = time.time()
-    for i, (input_, target, batch_cif_ids) in enumerate(val_loader):
+    for i, (input_, target, batch_cif_ids) in enumerate(tqdm(val_loader)):
         with torch.no_grad():
             if args.cuda:
-                input_var = (tensor.to("cuda") for tensor in input_)
+                input_var = (item.to("cuda") if isinstance(item, torch.Tensor) else item for item in input_)
             else:
                 input_var = input_
         if model_args.task == 'regression':
@@ -240,7 +216,8 @@ def validate(val_loader, model, criterion, normalizer, test=False,
     if test:
         star_label = '**'
         import csv
-        with open(os.path.join('output', csv_name), 'w') as f:
+        # with open(os.path.join('output', csv_name), 'w') as f:
+        with open('/home/uceckz0/Project/cgcnn/ARC_MOF/repeat_cifs/band_gap/test.csv') as f: 
             writer = csv.writer(f)
             for cif_id, target, pred in zip(test_cif_ids, test_targets,
                                             test_preds):

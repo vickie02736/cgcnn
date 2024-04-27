@@ -20,6 +20,8 @@ from cgcnn.data import CIFData
 from cgcnn.data import collate_pool, get_loader
 from cgcnn.model import CrystalGraphConvNet
 
+from tqdm import tqdm
+
 parser = argparse.ArgumentParser(
     description='Crystal Graph Convolutional Neural Networks')
 parser.add_argument('data_options', metavar='OPTIONS', nargs='+',
@@ -38,7 +40,7 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch-size', default=256, type=int, 
                     metavar='N', help='mini-batch size (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.005, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
                     metavar='LR', help='initial learning rate (default: '
                                        '0.01)')
 parser.add_argument('--lr-milestones', default=[100], nargs='+', type=int,
@@ -53,7 +55,7 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 
-parser.add_argument('--train-radio', default=0.1, type=float, metavar='N', help='train radio')
+parser.add_argument('--train-ratio', default=0.8, type=float, metavar='N', help='train radio')
 
 parser.add_argument('--optim', default='SGD', type=str, metavar='SGD',
                     help='choose an optimizer, SGD or Adam, (default: SGD)')
@@ -70,6 +72,8 @@ parser.add_argument('--disable-save-torch', action='store_true',
 parser.add_argument('--clean-torch', action='store_true',
                     help='Clean CIF PyTorch data .json files')
 parser.add_argument('--target', default='output', type=str, metavar='PATH',)
+parser.add_argument('--test', type=bool, default=True, help='Evaluate on test set')
+
 
 args = parser.parse_args(sys.argv[1:])
 
@@ -85,28 +89,34 @@ def main():
     global args, best_mae_error
 
     # load data
-    train_dataset = CIFData(*args.data_options, target_dir = args.target, train=True, 
-                            disable_save_torch=args.disable_save_torch)
-    test_dataset = CIFData(*args.data_options, target_dir = args.target, train=False,
-                            disable_save_torch=args.disable_save_torch)
     collate_fn = collate_pool
-    train_loader, val_loader, test_loader = get_loader(train_dataset, test_dataset, args.train_radio,
-                                                       collate_fn=collate_fn, batch_size=args.batch_size, 
-                                                       num_workers=args.workers, pin_memory=args.cuda)
-
+    assert os.path.exists(args.data_options[0]), 'data_options does not exist!'
+    train_dataset = CIFData(root_dir=args.data_options[0], target_dir = args.target, train=True, 
+                            disable_save_torch=args.disable_save_torch)
+    if args.test:
+        test_dataset = CIFData(root_dir=args.data_options[0], target_dir = args.target, train=False,
+                                disable_save_torch=args.disable_save_torch)
+        train_loader, val_loader, test_loader = get_loader(train_dataset, test_dataset, args.train_ratio,
+                                                        collate_fn=collate_fn, batch_size=args.batch_size, 
+                                                        num_workers=args.workers, pin_memory=args.cuda)
+    else: 
+        train_loader, val_loader = get_loader(train_dataset, args.train_ratio,
+                                            collate_fn=collate_fn, batch_size=args.batch_size,
+                                            num_workers=args.workers, pin_memory=args.cuda)
+        
     # Make sure >1 class is present
     if args.task == 'classification':
         total_train = 0
         total_val = 0
         total_test = 0
-        for _, (_, target, _) in enumerate(train_loader):
+        for _, (_, target, _) in enumerate(tqdm(train_loader)):
             for target_i in target.squeeze():
                 total_train += target_i
         if bool(total_train == 0):
             raise ValueError('All 0s in train')
         elif bool(total_train == 1):
             raise ValueError('All 1s in train')
-        for _, (_, target, _) in enumerate(val_loader):
+        for _, (_, target, _) in enumerate(tqdm(val_loader)):
             if len(target) == 1:
                 raise ValueError('Only single entry in val')
             for target_i in target.squeeze():
@@ -115,7 +125,7 @@ def main():
             raise ValueError('All 0s in val')
         elif bool(total_val == 1):
             raise ValueError('All 1s in val')
-        for _, (_, target, _) in enumerate(test_loader):
+        for _, (_, target, _) in enumerate(tqdm(test_loader)):
             if len(target) == 1:
                 raise ValueError('Only single entry in test')
             for target_i in target.squeeze():
@@ -263,7 +273,7 @@ def train(train_loader, model, criterion, optimizer, epoch, normalizer):
     model.train()
 
     end = time.time()
-    for i, (input_, target, _) in enumerate(train_loader):
+    for i, (input_, target, _) in enumerate(tqdm(train_loader)):
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -357,7 +367,7 @@ def validate(val_loader, model, criterion, normalizer, test=False, csv_name='tes
     model.eval()
 
     end = time.time()
-    for i, (input_, target, batch_cif_ids) in enumerate(val_loader):
+    for i, (input_, target, batch_cif_ids) in enumerate(tqdm(val_loader)):
         if args.cuda:
             with torch.no_grad():
                 input_var = (item.to("cuda") if isinstance(item, torch.Tensor) else item for item in input_)

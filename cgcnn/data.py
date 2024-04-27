@@ -293,6 +293,7 @@ class CIFData(Dataset):
             reader = csv.reader(f)
             self.id_prop_data = [[x.strip().replace('\ufeff', '')
                                   for x in row] for row in reader]
+            # self.id_prop_data = self.id_prop_data[0:10]
         random.seed(random_seed)
         random.shuffle(self.id_prop_data)
         

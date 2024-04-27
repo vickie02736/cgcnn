@@ -5,6 +5,7 @@ import sys
 sys.path.append(".")
 import time
 import warnings
+warnings.filterwarnings("ignore")
 from random import sample
 import csv
 
@@ -145,8 +146,7 @@ def main():
         shutil.rmtree(torch_data_path)
     if os.path.exists(torch_data_path):  
         if not args.clean_torch:
-            warnings.warn('Found cifdata folder at ' +
-                          torch_data_path+'. Will read in .jsons as-available')
+            warnings.warn(f'Found cifdata folder at {torch_data_path}. Will read in .jsons as-available')
     else:
         os.mkdir(torch_data_path)
 
@@ -212,10 +212,11 @@ def main():
 
     scheduler = MultiStepLR(optimizer, milestones=args.lr_milestones,
                             gamma=0.1)
+    scaler = torch.cuda.amp.GradScaler()
 
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, normalizer)
+        train(train_loader, model, criterion, optimizer, epoch, normalizer, scaler)
 
         # evaluate on validation set
         mae_error = validate(val_loader, model, criterion, normalizer)
@@ -256,7 +257,7 @@ def main():
              csv_name='test_results.csv')
 
 
-def train(train_loader, model, criterion, optimizer, epoch, normalizer):
+def train(train_loader, model, criterion, optimizer, epoch, normalizer, scaler):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -292,9 +293,11 @@ def train(train_loader, model, criterion, optimizer, epoch, normalizer):
         else:
             target_var = Variable(target_normed)
 
-        # compute output
-        output = model(*input_var)
-        loss = criterion(output, target_var)
+        with torch.autocast(device_type = "cuda"):
+            
+            # compute output
+            output = model(*input_var)
+            loss = criterion(output, target_var)
 
         # measure accuracy and record loss
         if args.task == 'regression':
@@ -313,8 +316,12 @@ def train(train_loader, model, criterion, optimizer, epoch, normalizer):
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        scaler.scale(loss).backward(retain_graph=True) # Scales loss
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.1)
+        scaler.step(optimizer) 
+        scaler.update() 
+        
 
         # measure elapsed time
         batch_time.update(time.time() - end)

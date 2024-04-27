@@ -11,11 +11,11 @@
 
 #$ -cwd
 
-# echo "This script is running on "
-# hostname
+echo "This script is running on "
+hostname
 
-# echo "GPU information" 
-# nvidia-smi
+echo "GPU information" 
+nvidia-smi
 
 source /home/uceckz0/miniconda3/bin/activate
 conda activate cgcnn
@@ -24,7 +24,7 @@ echo "Python environment activated"
 timestamp=$(date +%d-%m-%Y_%H:%M:%S)
 echo $timestamp
 python ../main.py /home/uceckz0/Project/cgcnn/data\
-    --epochs 2\
+    --epochs 200\
     --train-ratio 0.9\
     --target band_gap
 echo $timestamp

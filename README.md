@@ -175,25 +175,27 @@ After predicting, you will get one file in `cgcnn` directory:
 
 Here is the comprehensive bash script for the modified version: 
 ```bash
-python main.py \
-    root_dir \
-    --epochs 250 \
-    --output-dir band_gap \
-    --train-id-prop train_id_prop.csv \
-    --test-id-prop test_id_prop.csv \
+python main.py ./data \
+    --epochs 600 \
+    --target band_gap \
 ```
-Here is added the "output-dir" (directory), train-id-prop and test-id-prop (csv_files, the same format as previous "id_prop.csv"). 
+Here is added the "target" (directory), including train.csv. 
+
+```bash
+python ../predict.py\
+    --modelpath ../output/model_best.pth.tar\
+    --cifpath ./data\
+    --target band_gap
+```
 
 
 ## Authors
 
 This software was originally written by [Tian Xie](http://txie.me) and [Prof. Jeffrey Grossman](https://dmse.mit.edu/faculty/profile/grossman). This slightly modified version was made by [Andrew S. Rosen](https://asrosen.com/).
 
+Modified by Kewei Zhu to fit Myriad cluster. 
+
 ## License
 
 CGCNN is released under the MIT License. 
-
-Modified by Kewei Zhu. 
-
-
 

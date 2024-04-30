@@ -13,7 +13,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 from cgcnn.data import CIFData
-from cgcnn.data import collate_pool
+from cgcnn.data import collate_pool, get_loader
 from cgcnn.model import CrystalGraphConvNet
 from tqdm import tqdm
 
@@ -47,10 +47,10 @@ else:
 
 args.cuda = not args.disable_cuda and torch.cuda.is_available()
 
-# if model_args.task == 'regression':
-#     best_mae_error = 1e10
-# else:
-#     best_mae_error = 0.
+if model_args.task == 'regression':
+    best_mae_error = 1e10
+else:
+    best_mae_error = 0.
 
 
 def main():
@@ -60,9 +60,10 @@ def main():
     dataset = CIFData(args.cifpath, target_dir = args.target, train=False, 
                       disable_save_torch=args.disable_save_torch)
     collate_fn = collate_pool
-    test_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
-                                num_workers=args.workers, collate_fn=collate_fn,
-                                pin_memory=args.cuda)
+    get_loader
+    test_loader = get_loader(dataset, True, None,
+                collate_fn=collate_fn, batch_size=args.batch_size, 
+                num_workers=args.workers, pin_memory=args.cuda)
 
     # make output folder if needed
     if not os.path.exists('output'):

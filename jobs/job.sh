@@ -2,7 +2,7 @@
 
 #$ -N band_gap
 #$ -l h_rt=72:00:0
-#$ -l mem=10G
+#$ -l mem=100G
 #$ -l gpu=1
 #$ -ac allow=EFL
 
@@ -24,7 +24,8 @@ echo "Python environment activated"
 timestamp=$(date +%d-%m-%Y_%H:%M:%S)
 echo $timestamp
 python ../main.py /home/uceckz0/Project/cgcnn/data\
-    --epochs 200\
+    --epochs 300\
     --train-ratio 0.9\
-    --target band_gap
+    --target band_gap\
+    --testing True
 echo $timestamp

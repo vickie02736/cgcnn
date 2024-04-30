@@ -14,7 +14,7 @@ from torch.utils.data.dataloader import default_collate
 from torch.utils.data.sampler import SubsetRandomSampler
 
 
-def get_loader(train_dataset, test_dataset=None, train_ratio=0.8, 
+def get_loader(dataset, test=False, train_ratio=None, 
                collate_fn=default_collate, batch_size=64, 
                num_workers=1, pin_memory=False, **kwargs):
     """
@@ -44,27 +44,29 @@ def get_loader(train_dataset, test_dataset=None, train_ratio=0.8,
         return_test=True.
     """
 
-    total_size = len(train_dataset)
+    total_size = len(dataset)
     indices = list(range(total_size))
-    train_size = int(train_ratio * total_size)
-    train_sampler = SubsetRandomSampler(indices[:train_size])
-    val_sampler = SubsetRandomSampler(indices[train_size:])
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size,
-                              sampler=train_sampler,
-                              num_workers=num_workers,
-                              collate_fn=collate_fn, pin_memory=pin_memory)
-    val_loader = DataLoader(train_dataset, batch_size=batch_size,
-                            sampler=val_sampler,
-                            num_workers=num_workers,
-                            collate_fn=collate_fn, pin_memory=pin_memory)
-    if test_dataset is not None:
-        test_loader = DataLoader(test_dataset, batch_size=batch_size,
+    if test == False: 
+        train_size = int(train_ratio * total_size)
+        train_sampler = SubsetRandomSampler(indices[:train_size])
+        val_sampler = SubsetRandomSampler(indices[train_size:])
+
+        train_loader = DataLoader(dataset, batch_size=batch_size,
+                                sampler=train_sampler,
                                 num_workers=num_workers,
                                 collate_fn=collate_fn, pin_memory=pin_memory)
-        return train_loader, val_loader, test_loader
-    else:
+        val_loader = DataLoader(dataset, batch_size=batch_size,
+                                sampler=val_sampler,
+                                num_workers=num_workers,
+                                collate_fn=collate_fn, pin_memory=pin_memory)
         return train_loader, val_loader
+    
+    else: 
+        test_loader = DataLoader(dataset, batch_size=batch_size,
+                                num_workers=num_workers,
+                                collate_fn=collate_fn, pin_memory=pin_memory)
+        return test_loader
 
 
 def collate_pool(dataset_list):
@@ -293,7 +295,7 @@ class CIFData(Dataset):
             reader = csv.reader(f)
             self.id_prop_data = [[x.strip().replace('\ufeff', '')
                                   for x in row] for row in reader]
-            # self.id_prop_data = self.id_prop_data[0:10]
+            # self.id_prop_data = self.id_prop_data[0:10000]
         random.seed(random_seed)
         random.shuffle(self.id_prop_data)
         

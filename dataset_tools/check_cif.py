@@ -28,16 +28,16 @@ def check_cif_files_parallel(directory):
     return results
 
 # Specify the directory containing your CIF files
-directory = '../ARC_MOF/all_structures_1'
+directory = '/home/uceckz0/Scratch/CSD_non_disordered'
 results = check_cif_files_parallel(directory)
 
 # Convert results to a DataFrame and save to CSV
 df = pd.DataFrame(results)
-df.to_csv("cif_files_status.csv", index=False)
+df.to_csv("CSD_non_disordered_status.csv", index=False)
 
 # Filter and print filenames of valid CIF files with structures
 valid_files = df[df['Status'] == 'Valid with structures']['Filename']
-valid_files.to_csv("valid_cif_files.csv", index=False)
+valid_files.to_csv("CSD_non_disordered_valid_cif_files.csv", index=False)
 print("Valid CIF files with structures:")
 print(valid_files)
 

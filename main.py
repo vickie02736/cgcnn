@@ -2,10 +2,8 @@ import argparse
 import os
 import shutil
 import sys
-sys.path.append(".")
 import time
 import warnings
-warnings.filterwarnings("ignore")
 from random import sample
 import csv
 
@@ -20,8 +18,6 @@ from torch.optim.lr_scheduler import MultiStepLR
 from cgcnn.data import CIFData
 from cgcnn.data import collate_pool, get_loader
 from cgcnn.model import CrystalGraphConvNet
-
-from tqdm import tqdm
 
 parser = argparse.ArgumentParser(
     description='Crystal Graph Convolutional Neural Networks')
@@ -39,9 +35,9 @@ parser.add_argument('--epochs', default=30, type=int, metavar='N',
                     help='number of total epochs to run (default: 30)')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=256, type=int, 
+parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate (default: '
                                        '0.01)')
 parser.add_argument('--lr-milestones', default=[100], nargs='+', type=int,
@@ -55,8 +51,23 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
-
-parser.add_argument('--train-ratio', default=0.8, type=float, metavar='N', help='train radio')
+train_group = parser.add_mutually_exclusive_group()
+train_group.add_argument('--train-ratio', default=None, type=float, metavar='N',
+                         help='number of training data to be loaded (default none)')
+train_group.add_argument('--train-size', default=None, type=int, metavar='N',
+                         help='number of training data to be loaded (default none)')
+valid_group = parser.add_mutually_exclusive_group()
+valid_group.add_argument('--val-ratio', default=0.1, type=float, metavar='N',
+                         help='percentage of validation data to be loaded (default '
+                         '0.1)')
+valid_group.add_argument('--val-size', default=None, type=int, metavar='N',
+                         help='number of validation data to be loaded (default '
+                              '1000)')
+test_group = parser.add_mutually_exclusive_group()
+test_group.add_argument('--test-ratio', default=0.1, type=float, metavar='N',
+                        help='percentage of test data to be loaded (default 0.1)')
+test_group.add_argument('--test-size', default=None, type=int, metavar='N',
+                        help='number of test data to be loaded (default 1000)')
 
 parser.add_argument('--optim', default='SGD', type=str, metavar='SGD',
                     help='choose an optimizer, SGD or Adam, (default: SGD)')
@@ -72,9 +83,8 @@ parser.add_argument('--disable-save-torch', action='store_true',
                     help='Do not save CIF PyTorch data as .json files')
 parser.add_argument('--clean-torch', action='store_true',
                     help='Clean CIF PyTorch data .json files')
-parser.add_argument('--target', default='output', type=str, metavar='PATH',)
-parser.add_argument('--test', type=bool, default=True, help='Evaluate on test set')
-
+parser.add_argument('--target', default='output', type=str)
+parser.add_argument('--testing', type=bool, default=True, help='Evaluate on test set')
 
 args = parser.parse_args(sys.argv[1:])
 
@@ -90,34 +100,38 @@ def main():
     global args, best_mae_error
 
     # load data
+    dataset = CIFData(root_dir=args.data_options[0], target_dir = args.target, train=True, 
+                disable_save_torch=args.disable_save_torch)
     collate_fn = collate_pool
-    assert os.path.exists(args.data_options[0]), 'data_options does not exist!'
-    train_dataset = CIFData(root_dir=args.data_options[0], target_dir = args.target, train=True, 
-                            disable_save_torch=args.disable_save_torch)
-    if args.test:
+    train_loader, val_loader = get_loader(dataset, False, args.train_ratio,
+                collate_fn=collate_fn, batch_size=args.batch_size,
+                num_workers=args.workers, pin_memory=args.cuda)
+    print('trainloader, valid_loader')
+    if args.testing:
         test_dataset = CIFData(root_dir=args.data_options[0], target_dir = args.target, train=False,
-                                disable_save_torch=args.disable_save_torch)
-        train_loader, val_loader, test_loader = get_loader(train_dataset, test_dataset, args.train_ratio,
-                                                        collate_fn=collate_fn, batch_size=args.batch_size, 
-                                                        num_workers=args.workers, pin_memory=args.cuda)
+                disable_save_torch=args.disable_save_torch)
+        test_loader = get_loader(test_dataset, True, None,
+                collate_fn=collate_fn, batch_size=args.batch_size, 
+                num_workers=args.workers, pin_memory=args.cuda)
+        print('test_loader')
     else: 
-        train_loader, val_loader = get_loader(train_dataset, args.train_ratio,
-                                            collate_fn=collate_fn, batch_size=args.batch_size,
-                                            num_workers=args.workers, pin_memory=args.cuda)
+        pass
+
         
+
     # Make sure >1 class is present
     if args.task == 'classification':
         total_train = 0
         total_val = 0
         total_test = 0
-        for _, (_, target, _) in enumerate(tqdm(train_loader)):
+        for i, (_, target, _) in enumerate(train_loader):
             for target_i in target.squeeze():
                 total_train += target_i
         if bool(total_train == 0):
             raise ValueError('All 0s in train')
         elif bool(total_train == 1):
             raise ValueError('All 1s in train')
-        for _, (_, target, _) in enumerate(tqdm(val_loader)):
+        for i, (_, target, _) in enumerate(val_loader):
             if len(target) == 1:
                 raise ValueError('Only single entry in val')
             for target_i in target.squeeze():
@@ -126,7 +140,7 @@ def main():
             raise ValueError('All 0s in val')
         elif bool(total_val == 1):
             raise ValueError('All 1s in val')
-        for _, (_, target, _) in enumerate(tqdm(test_loader)):
+        for i, (_, target, _) in enumerate(test_loader):
             if len(target) == 1:
                 raise ValueError('Only single entry in test')
             for target_i in target.squeeze():
@@ -137,16 +151,17 @@ def main():
             raise ValueError('All 1s in test')
 
     # make output folder if needed
-    if not os.path.exists(args.target):
-        os.mkdir(args.target)
+    if not os.path.exists('output'):
+        os.mkdir('output')
 
     # make and clean torch files if needed
     torch_data_path = os.path.join(args.data_options[0], 'cifdata')
     if args.clean_torch and os.path.exists(torch_data_path):
         shutil.rmtree(torch_data_path)
-    if os.path.exists(torch_data_path):  
+    if os.path.exists(torch_data_path):
         if not args.clean_torch:
-            warnings.warn(f'Found cifdata folder at {torch_data_path}. Will read in .jsons as-available')
+            warnings.warn('Found cifdata folder at ' +
+                          torch_data_path+'. Will read in .jsons as-available')
     else:
         os.mkdir(torch_data_path)
 
@@ -155,19 +170,18 @@ def main():
         normalizer = Normalizer(torch.zeros(2))
         normalizer.load_state_dict({'mean': 0., 'std': 1.})
     else:
-        if len(train_dataset) < 500:
-            warnings.warn('Train_dataset has less than 500 data points. '
+        if len(dataset) < 500:
+            warnings.warn('Dataset has less than 500 data points. '
                           'Lower accuracy is expected. ')
-            sample_data_list = [train_dataset[i] for i in range(len(train_dataset))]
+            sample_data_list = [dataset[i] for i in range(len(dataset))]
         else:
-            sample_data_list = [train_dataset[i] for i in
-                                sample(range(len(train_dataset)), 500)]
-        
+            sample_data_list = [dataset[i] for i in
+                                sample(range(len(dataset)), 500)]
         _, sample_target, _ = collate_pool(sample_data_list)
         normalizer = Normalizer(sample_target)
 
     # build model
-    structures, _, _ = train_dataset[0]
+    structures, _, _ = dataset[0]
     orig_atom_fea_len = structures[0].shape[-1]
     nbr_fea_len = structures[1].shape[-1]
     model = CrystalGraphConvNet(orig_atom_fea_len, nbr_fea_len,
@@ -212,11 +226,10 @@ def main():
 
     scheduler = MultiStepLR(optimizer, milestones=args.lr_milestones,
                             gamma=0.1)
-    scaler = torch.cuda.amp.GradScaler()
 
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, normalizer, scaler)
+        train(train_loader, model, criterion, optimizer, epoch, normalizer)
 
         # evaluate on validation set
         mae_error = validate(val_loader, model, criterion, normalizer)
@@ -244,7 +257,7 @@ def main():
         }, is_best)
 
     # test best model
-    best_checkpoint = torch.load(os.path.join(args.target, 'model_best.pth.tar'))
+    best_checkpoint = torch.load(os.path.join('output', 'model_best.pth.tar'))
     model.load_state_dict(best_checkpoint['state_dict'])
     print('---------Evaluate Best Model on Train Set---------------')
     validate(train_loader, model, criterion, normalizer, test=True,
@@ -257,7 +270,7 @@ def main():
              csv_name='test_results.csv')
 
 
-def train(train_loader, model, criterion, optimizer, epoch, normalizer, scaler):
+def train(train_loader, model, criterion, optimizer, epoch, normalizer):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -274,7 +287,7 @@ def train(train_loader, model, criterion, optimizer, epoch, normalizer, scaler):
     model.train()
 
     end = time.time()
-    for i, (input_, target, _) in enumerate(tqdm(train_loader)):
+    for i, (input_, target, _) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -293,11 +306,9 @@ def train(train_loader, model, criterion, optimizer, epoch, normalizer, scaler):
         else:
             target_var = Variable(target_normed)
 
-        with torch.autocast(device_type = "cuda"):
-            
-            # compute output
-            output = model(*input_var)
-            loss = criterion(output, target_var)
+        # compute output
+        output = model(*input_var)
+        loss = criterion(output, target_var)
 
         # measure accuracy and record loss
         if args.task == 'regression':
@@ -316,12 +327,8 @@ def train(train_loader, model, criterion, optimizer, epoch, normalizer, scaler):
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
-        scaler.scale(loss).backward(retain_graph=True) # Scales loss
-        scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.1)
-        scaler.step(optimizer) 
-        scaler.update() 
-        
+        loss.backward()
+        optimizer.step()
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -374,7 +381,7 @@ def validate(val_loader, model, criterion, normalizer, test=False, csv_name='tes
     model.eval()
 
     end = time.time()
-    for i, (input_, target, batch_cif_ids) in enumerate(tqdm(val_loader)):
+    for i, (input_, target, batch_cif_ids) in enumerate(val_loader):
         if args.cuda:
             with torch.no_grad():
                 input_var = (item.to("cuda") if isinstance(item, torch.Tensor) else item for item in input_)
@@ -456,7 +463,7 @@ def validate(val_loader, model, criterion, normalizer, test=False, csv_name='tes
 
     if test:
         star_label = '**'
-        with open(os.path.join(args.target, csv_name), 'w') as f:
+        with open(os.path.join('output', csv_name), 'w') as f:
             writer = csv.writer(f)
             for cif_id, target, pred in zip(test_cif_ids, test_targets,
                                             test_preds):
@@ -545,10 +552,10 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def save_checkpoint(state, is_best, filename=os.path.join(args.target, 'checkpoint.pth.tar')):
+def save_checkpoint(state, is_best, filename=os.path.join('output', 'checkpoint.pth.tar')):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, os.path.join(args.target, 'model_best.pth.tar'))
+        shutil.copyfile(filename, os.path.join('output', 'model_best.pth.tar'))
 
 
 def adjust_learning_rate(optimizer, epoch, k):

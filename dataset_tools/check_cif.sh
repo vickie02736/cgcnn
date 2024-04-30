@@ -2,7 +2,7 @@
 
 #$ -N check_cif
 #$ -l h_rt=10:00:0
-#$ -l mem=50G
+#$ -l mem=100G
 #$ -pe mpi 4
 
 #$ -m be

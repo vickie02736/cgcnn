@@ -4,7 +4,7 @@
 #$ -l h_rt=72:00:0
 #$ -l mem=100G
 #$ -l gpu=1
-#$ -ac allow=L
+#$ -ac allow=EFL
 
 #$ -m be
 #$ -M uceckz0@ucl.ac.uk
@@ -24,7 +24,7 @@ echo "Python environment activated"
 timestamp=$(date +%d-%m-%Y_%H:%M:%S)
 echo $timestamp
 python ../predict.py\
-    --modelpath /home/uceckz0/Project/cgcnn/jobs/band_gap/model_best.pth.tar\
+    --modelpath ./output/model_best.pth.tar\
     --cifpath /home/uceckz0/Project/cgcnn/data\
     --target band_gap
 echo $timestamp
